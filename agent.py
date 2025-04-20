@@ -1,13 +1,11 @@
+from flask import Flask, request, jsonify
 import google.generativeai as genai
+import os
 
-# Replace with your actual Gemini API key
-genai.configure(api_key="AIzaSyDd5bDQUz5hTC8rNOYEKjfUsPPzpRbN1iI")
+app = Flask(__name__)
 
-# List of available models to confirm
-available_models=[m.name for m in genai.list_models()]
-print("Available models:", available_models)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-#Load Gemini 1.5 Model if available
 model = genai.GenerativeModel(
     model_name="models/gemini-1.5-pro-latest",
     system_instruction="""
@@ -27,19 +25,26 @@ Avoid:
 - Making up info not found on the site.
 
 Be friendly, helpful, and feel like a real team member at Kranian Farms.
-""")
+"""
+)
 
+@app.route("/", methods=["GET"])
+def home():
+    return "🌱 Kranian AI is running."
 
-print("🧠 Gemini Chat — type 'exit' to quit.\n")
+@app.route("/chat", methods=["POST"])
+def chat():
+    data = request.get_json()
+    user_input = data.get("message")
 
-while True:
-    user_input = input("You: ")
-    if user_input.lower() in ["exit", "quit"]:
-        print("Goodbye!")
-        break
+    if not user_input:
+        return jsonify({"error": "Missing 'message'"}), 400
 
     try:
         response = model.generate_content(user_input)
-        print("Gemini:", response.text, "\n")
+        return jsonify({"reply": response.text})
     except Exception as e:
-        print("❌ Error:", e)
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
